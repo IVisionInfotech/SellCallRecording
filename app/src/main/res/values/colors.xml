@@ -1,0 +1,44 @@
+<resources>
+    <!-- Primary colors -->
+    <color name="colorPrimary">#004D60</color>
+    <color name="colorPrimaryVariant">#003344</color>
+    <color name="colorOnPrimary">#EAEAEA</color>
+
+    <!-- Secondary colors -->
+    <color name="colorSecondary">#007B8C</color>
+    <color name="colorOnSecondary">#FFFFFF</color>
+
+    <!-- Background colors -->
+    <color name="colorBackground">#001F2C</color>
+    <color name="colorWindowBackground">#001F2C</color>
+
+    <!-- Status Bar and Navigation Bar colors -->
+    <color name="colorStatusBar">#003344</color>
+    <color name="colorNavigationBar">#001F2C</color>
+
+    <!-- Bottom Navigation Colors -->
+    <color name="bottomNavItemColor">#7EA0A7</color>
+    <color name="bottomNavBGColor">#093859</color>
+
+    <!-- Text input and hint colors -->
+    <color name="textInputHintColor">#7EA0A7</color>
+    <color name="textInputTextColor">#EAEAEA</color>
+    <color name="textInputBoxStrokeColor">#007B8C</color>
+
+    <!-- Button colors -->
+    <color name="buttonBackgroundColor">#007B8C</color>
+    <color name="buttonTextColor">#FFFFFF</color>
+
+    <!-- Toolbar Colors -->
+    <color name="toolbarBackgroundColor">#001F2C</color>
+    <color name="toolbarTitleTextColor">#EAEAEA</color>
+    <color name="toolbarSubtitleTextColor">#7EA0A7</color>
+    <color name="white">#FFFFFF</color>
+    <color name="lavender">#8692f7</color>
+    <color name="select_text">#0CFBF4</color>
+    <color name="unselect_text">#FFFFFF</color>
+
+
+    <color name="shimmerPlaceholderColor">#E0E0E0</color>
+
+</resources>

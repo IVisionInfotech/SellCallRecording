@@ -1,0 +1,24 @@
+<resources>
+    <string name="app_name">SellCallRecording</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
+    <string name="colored_text"><![CDATA[<font color="#E2782D">4</font>]]></string>
+    <string name="call">Call</string>
+    <string name="menu">Menu</string>
+    <string name="accessibility_service_description">This Accessibility Service monitors phone call events to automatically start and stop audio recording. \\n        It requires permission to detect call events and interact with the system for recording purposes.</string>
+    <string name="login">Login</string>
+    <string name="login_to_your_account">Login to your account</string>
+    <string name="email">Email</string>
+    <string name="password">Password</string>
+    <string name="enable_accessibility">Enable Accessibility Service</string>
+    <string name="accessibility_msg">This app requires the Accessibility Service to function properly. Would you like to enable it?</string>
+    <string name="enable">Enable</string>
+    <string name="close">close</string>
+    <string name="permission">Permission</string>
+    <string name="no_data_found">No data found</string>
+    <string name="call_tracker">Call Tracker</string>
+    <string name="all_calls">All Calls</string>
+    <string name="search">Search</string>
+
+</resources>
