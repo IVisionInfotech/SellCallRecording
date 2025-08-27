@@ -1,6 +1,7 @@
 package com.sellcallrecording.ui.home
 
 import android.annotation.SuppressLint
+import android.app.AlertDialog
 import android.content.Intent
 import android.media.MediaPlayer
 import android.media.MediaRecorder
@@ -14,6 +15,8 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity.TELEPHONY_SERVICE
 import androidx.appcompat.widget.AppCompatButton
 import androidx.core.content.ContextCompat
@@ -25,10 +28,13 @@ import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.sellcallrecording.R
 import com.sellcallrecording.adapter.CallDataViewAdapter
 import com.sellcallrecording.adapter.CallTypeAdapter
-import com.sellcallrecording.data.model.CallType
+import com.sellcallrecording.data.model.CallResponse
+import com.sellcallrecording.data.model.Category
+import com.sellcallrecording.data.model.StatusList
 import com.sellcallrecording.database.AppDatabase
 import com.sellcallrecording.database.Recording
 import com.sellcallrecording.databinding.BottadialogAllBinding
+import com.sellcallrecording.databinding.DialogStatusUpdateBinding
 import com.sellcallrecording.databinding.FragmentHomeBinding
 import com.sellcallrecording.loadmore.RecyclerViewLoadMoreScroll
 import com.sellcallrecording.service.CallRecordingService
@@ -47,11 +53,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.io.File
-import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
+import kotlin.collections.isNullOrEmpty
 
 @AndroidEntryPoint
 class HomeFragment : Fragment() {
@@ -61,15 +67,17 @@ class HomeFragment : Fragment() {
     private var _binding: FragmentHomeBinding? = null
     private val binding get() = _binding!!
     private var isCallFromApp = false
-    private var item: CallType? = null
+    private var item: CallResponse? = null
     private var communicationType: String? = "0"
     private var search: String? = "0"
+    private var selectedStatusId: String = "0"
     private var startTime: String? = ""
     private var endTime: String? = ""
     private lateinit var adapter: CallDataViewAdapter
     private val viewModel: HomeViewModel by viewModels()
-    private val allCallsData: ArrayList<CallType> = ArrayList()
-    private var callTypeData: ArrayList<CallType> = ArrayList()
+    private val allCallsData: ArrayList<CallResponse> = ArrayList()
+    private var callTypeData: ArrayList<Category> = ArrayList()
+    private var statusList: ArrayList<StatusList> = ArrayList()
     private var recorder: MediaRecorder? = null
     private var outputFile: File? = null
     private var scrollListener: RecyclerViewLoadMoreScroll? = null
@@ -125,6 +133,7 @@ class HomeFragment : Fragment() {
             override fun afterTextChanged(s: Editable?) {}
         })
         setData()
+        viewModel.fetchStatusListData(baseUrl)
     }
 
     private fun setData() {
@@ -134,7 +143,14 @@ class HomeFragment : Fragment() {
             scrollListener?.setLoaded()
             adapter.hideShimmer()
             adapter.setLoading(false)
-            data?.let { adapter.addData(it) }
+            data?.let { list ->
+                val filteredList = if (binding.rlAllCalls.isSelected) {
+                    list.filter { it.convert_status == "1" }
+                } else {
+                    list.filter { it.convert_status != "1" }
+                }
+                adapter.addData(filteredList)
+            }
         }
 
         viewModel.errorMessage.observe(requireActivity()) {
@@ -148,7 +164,15 @@ class HomeFragment : Fragment() {
             if (data.isNullOrEmpty()) {
                 showToast(requireActivity(), "No data found")
             } else {
-                callTypeData = data as ArrayList<CallType>
+                callTypeData = data as ArrayList<Category>
+            }
+        }
+
+        viewModel.statusList.observe(requireActivity()) { data ->
+            if (data.isNullOrEmpty()) {
+                showToast(requireActivity(), "No data found")
+            } else {
+                statusList = data as ArrayList<StatusList>
             }
         }
 
@@ -157,7 +181,7 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun fetchData(string: String) {
+    private fun fetchData(string: String, communicationType: String?) {
         adapter.clearList()
         binding.recyclerView.visibility = View.VISIBLE
         binding.tvNoDataFound.visibility = View.GONE
@@ -166,41 +190,43 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        adapter = CallDataViewAdapter(requireActivity(), allCallsData, object : ClickListener {
-            override fun onItemSelected(position: Int, model: Any?) {
-                item = model as CallType
-                val mobile = Util.sanitizeMobileNumber(item!!.m_no)
-
-                if (mobile.length == 10) {
-                    checkPermissions(requireActivity(), requiredPermissions, object :
-                        Util.GetPermission {
-                        override fun getPermission(permission: Boolean) {
-                            if (permission) {
-                                isCallFromApp = true
-                                Util.makeCall(requireActivity(), mobile)
-                            } else {
-                                showToast(requireActivity(), "Permission Denied")
-                            }
-                        }
-                    })
-                } else {
-                    showToast(requireActivity(), "It's not a valid number$mobile")
-                }
-            }
-        },
-            object : ClickListener {
+        adapter = CallDataViewAdapter(
+            requireActivity(), allCallsData, object : ClickListener {
                 override fun onItemSelected(position: Int, model: Any?) {
-                    val item = model as CallType
-                    val currentDate = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date())
-                    viewModel.agentWhatsappCallStatus(baseUrl, item.d_id, currentDate)
-                    Util.openWhatsAppOrBusiness(requireActivity(), item.m_no)
+                    item = model as CallResponse
+                    val mobile = Util.sanitizeMobileNumber(item!!.M_no)
+
+                    if (mobile.length == 10) {
+                        checkPermissions(requireActivity(), requiredPermissions, object :
+                            Util.GetPermission {
+                            override fun getPermission(permission: Boolean) {
+                                if (permission) {
+                                    isCallFromApp = true
+                                    Util.makeCall(requireActivity(), mobile)
+                                } else {
+                                    showToast(requireActivity(), "Permission Denied")
+                                }
+                            }
+                        })
+                    } else {
+                        showToast(requireActivity(), "It's not a valid number$mobile")
+                    }
                 }
             },
             object : ClickListener {
                 override fun onItemSelected(position: Int, model: Any?) {
-                    val item = model as CallType
-                    if (!item.remarks.isNullOrBlank()) {
-                        confirmationDialog(requireActivity(), "Remarks", item.remarks, "Close") {
+                    val item = model as CallResponse
+                    val currentDate =
+                        SimpleDateFormat("dd-MM-yyyy", Locale.getDefault()).format(Date())
+                    viewModel.agentWhatsappCallStatus(baseUrl, item.call_id, "Whatsapp")
+                    Util.openWhatsAppOrBusiness(requireActivity(), item.M_no)
+                }
+            },
+            object : ClickListener {
+                override fun onItemSelected(position: Int, model: Any?) {
+                    val item = model as CallResponse
+                    if (!item.feedback.isNullOrBlank()) {
+                        confirmationDialog(requireActivity(), "Remarks", item.feedback, "Close") {
 
                         }
                     }
@@ -208,7 +234,8 @@ class HomeFragment : Fragment() {
             }
         )
         scrollListener =
-            Util.bindLoadMoreRecyclerView(binding.recyclerView, 1, RecyclerView.VERTICAL,
+            Util.bindLoadMoreRecyclerView(
+                binding.recyclerView, 1, RecyclerView.VERTICAL,
                 object : ClickListener {
                     override fun onLoadListener() {
                     }
@@ -223,14 +250,14 @@ class HomeFragment : Fragment() {
             binding.rlAllCalls.isSelected = true
             binding.rlAll.isSelected = false
             communicationType = "0"
-            fetchData(LOAD_CALL_HISTORY_DATA_URL)
+            fetchData(LOAD_CALL_HISTORY_DATA_URL, communicationType)
         }
 
         binding.btnAll.setOnClickListener {
             binding.rlAllCalls.isSelected = false
             binding.rlAll.isSelected = true
             communicationType = "0"
-            fetchData(LOAD_CALL_DATA_URL)
+            fetchData(LOAD_CALL_DATA_URL, communicationType)
             viewModel.fetchCallTypeData(baseUrl)
         }
         binding.btnAll.setOnTouchListener { v, event -> handleDrawableEndClick(v, event) }
@@ -260,14 +287,13 @@ class HomeFragment : Fragment() {
 
         dialogBinding.recyclerView.adapter =
             CallTypeAdapter(
-                requireActivity(),
                 callTypeData,
                 communicationType,
                 object : ClickListener {
                     override fun onItemSelected(position: Int, model: Any?) {
-                        val item = model as CallType
-                        communicationType = item.id
-                        fetchData(LOAD_CALL_DATA_URL)
+                        val item = model as Category
+                        communicationType = item.category_id
+                        fetchData(LOAD_CALL_DATA_URL, communicationType)
                         dialog.dismiss()
                     }
                 })
@@ -292,9 +318,9 @@ class HomeFragment : Fragment() {
     }
 
     private fun startRecordingService() {
-        viewModel.agentCallStatus(baseUrl)
+        viewModel.agentWhatsappCallStatus(baseUrl,item!!.call_id,"Call")
         val serviceIntent = Intent(requireActivity(), CallRecordingService::class.java)
-        audioRecorder.startRecording(requireActivity(), item!!.m_no)
+        audioRecorder.startRecording(requireActivity(), item!!.M_no)
         startTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
 //        startRecording()
         ContextCompat.startForegroundService(requireActivity(), serviceIntent)
@@ -304,7 +330,8 @@ class HomeFragment : Fragment() {
         val serviceIntent = Intent(requireActivity(), CallRecordingService::class.java)
         outputFile = audioRecorder.stopRecording()
         endTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date())
-        uploadRecordingToServer(outputFile)
+        showStatusUpdateDialog()
+//        uploadRecordingToServer(outputFile)
 //        stopRecording()
         requireActivity().stopService(serviceIntent)
     }
@@ -320,11 +347,11 @@ class HomeFragment : Fragment() {
                 requireActivity(),
                 getString(R.string.enable_accessibility),
                 getString(R.string.accessibility_msg),
-                getString(R.string.enable), getString(R.string.close), aProcedure = Runnable {
+                getString(R.string.enable), getString(R.string.close), aProcedure = {
                     val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     startActivity(intent)
-                }, aProcedure2 = Runnable {
+                }, aProcedure2 = {
                     ensureAccessibilityServiceEnabled()
                 })
         }
@@ -335,7 +362,11 @@ class HomeFragment : Fragment() {
         _binding = null
     }
 
-    private fun uploadRecordingToServer(recordingFile: File?) {
+    private fun uploadRecordingToServer(
+        recordingFile: File?,
+        selectedStatus1: String,
+        remark1: String
+    ) {
         recordingFile?.let { file ->
             try {
                 val currentDate = SimpleDateFormat("d-M-yyyy", Locale.getDefault()).format(Date())
@@ -347,9 +378,15 @@ class HomeFragment : Fragment() {
                 mediaPlayer.release()
 
                 if (Util.isNetworkAvailable(requireActivity())) {
-                    uploadToServer(file, durationInSeconds, currentDate)
+                    uploadToServer(file, durationInSeconds, currentDate, selectedStatus1, remark1)
                 } else {
-                    saveRecordingLocally(file, durationInSeconds, currentDate)
+                    saveRecordingLocally(
+                        file,
+                        durationInSeconds,
+                        currentDate,
+                        selectedStatus1,
+                        remark1
+                    )
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -358,7 +395,13 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun uploadToServer(file: File, duration: Int, date: String) {
+    private fun uploadToServer(
+        file: File,
+        duration: Int,
+        date: String,
+        selectedStatus1: String,
+        remark1: String
+    ) {
         viewModel.uploadRecording(
             baseUrl = baseUrl,
             recordingFile = file,
@@ -367,12 +410,20 @@ class HomeFragment : Fragment() {
             endTime = endTime.toString(),
             duration = duration,
             token = session.getString("token", "")!!,
-            d_id = item!!.d_id,
-            date = date
+            d_id = item!!.call_id,
+            date = date,
+            status = selectedStatus1,
+            remarks = remark1,
         )
     }
 
-    private fun saveRecordingLocally(file: File, duration: Int, date: String) {
+    private fun saveRecordingLocally(
+        file: File,
+        duration: Int,
+        date: String,
+        selectedStatus1: String,
+        remark1: String
+    ) {
         val recording = Recording(
             fileName = file.name,
             filePath = file.absolutePath,
@@ -380,8 +431,10 @@ class HomeFragment : Fragment() {
             endTime = endTime.toString(),
             duration = duration,
             token = session.getString("token", "") ?: "",
-            d_id = item!!.d_id,
-            date = date
+            d_id = item!!.call_id,
+            date = date,
+            status = selectedStatus1,
+            remark = remark1
         )
 
         CoroutineScope(Dispatchers.IO).launch {
@@ -389,6 +442,46 @@ class HomeFragment : Fragment() {
                 Room.databaseBuilder(requireActivity(), AppDatabase::class.java, "recordings.db")
                     .build()
             db.recordingDao().insertRecording(recording)
+        }
+    }
+
+    fun showStatusUpdateDialog() {
+        val binding = DialogStatusUpdateBinding.inflate(LayoutInflater.from(context))
+        val dialogView = binding.root
+
+        val dialog = AlertDialog.Builder(context)
+            .setView(dialogView)
+            .setCancelable(false)
+            .create()
+        dialog.show()
+
+        if (statusList.isNotEmpty()) {
+            val statusNames = statusList.map { it.status }
+            val adapter = ArrayAdapter(
+                requireActivity(),
+                android.R.layout.simple_dropdown_item_1line,
+                statusNames
+            )
+            binding.statusDropdown.setAdapter(adapter)
+            binding.statusDropdown.showDropDown()
+
+            binding.statusDropdown.setOnItemClickListener { parent, view, position, id ->
+                val selectedStatusObject = statusList[position]
+                val selectedStatusId = selectedStatusObject.status_id
+                this.selectedStatusId = selectedStatusId
+            }
+        }
+
+        binding.saveButton.setOnClickListener {
+            val selectedStatus = binding.statusDropdown.text.toString()
+            val remark = binding.remarkEdittext.text.toString()
+
+            if (selectedStatus.isEmpty() || this.selectedStatusId.isEmpty()) {
+                Toast.makeText(context, "Please select a status.", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            uploadRecordingToServer(outputFile, selectedStatusId, remark)
+            dialog.dismiss()
         }
     }
 }

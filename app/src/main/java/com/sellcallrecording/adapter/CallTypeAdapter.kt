@@ -1,18 +1,15 @@
 package com.sellcallrecording.adapter
 
-import android.content.Context
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
-import com.sellcallrecording.data.model.CallType
+import com.sellcallrecording.data.model.Category
 import com.sellcallrecording.databinding.ItemCalltypeBinding
 import com.sellcallrecording.util.ClickListener
-import com.sellcallrecording.util.CustomView
 
 
 class CallTypeAdapter(
-    private val context: Context,
-    private val items: List<CallType>,
+    private val items: List<Category>,
     private val type: String?,
     private val listener: ClickListener
 ) :
@@ -20,11 +17,11 @@ class CallTypeAdapter(
 
     inner class CallTypeViewHolder(private val binding: ItemCalltypeBinding) :
         RecyclerView.ViewHolder(binding.root) {
-        fun bind(item: CallType) {
+        fun bind(item: Category) {
             binding.customView.setText(item.tcnt)
-            binding.customView.setSelect(type == item.id)
-            binding.itemText.text = item.name
-            binding.itemText.isSelected = type == item.id
+            binding.customView.setSelect(type == item.category_id)
+            binding.itemText.text = item.category
+            binding.itemText.isSelected = type == item.category_id
         }
     }
 

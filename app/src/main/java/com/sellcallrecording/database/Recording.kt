@@ -13,5 +13,7 @@ data class Recording(
     val duration: Int,
     val token: String,
     val d_id: String,
-    val date: String
+    val date: String,
+    val status: String,
+    val remark: String
 )

@@ -35,9 +35,10 @@ object Util {
     const val LOAD_CALL_DATA_URL = "get_calls.php"
     const val LOAD_CALL_HISTORY_DATA_URL = "get_calls.php"
     const val LOAD_API_CALL_TYPE_DATA_URL = "category.php"
-    const val LOAD_API_CALL_AGENT_URL = "callstahis"
-    const val LOAD_API_CALL_WhatsappStatus_URL = "apiwhatop"
-    const val LOAD_CALL_HISTORY_URL = "callhistorydata"
+    const val LOAD_API_CALL_STAUS_LIST_URL = "status.php"
+    const val LOAD_API_CALL_AGENT_URL = "calltypeapi.php"
+    const val LOAD_API_CALL_WhatsappStatus_URL = "calltypeapi.php"
+    const val LOAD_CALL_HISTORY_URL = "update_call.php"
     private var ansTrue: Runnable? = null
 
 

@@ -7,7 +7,7 @@ import android.view.ViewGroup
 import android.widget.PopupWindow
 import androidx.recyclerview.widget.RecyclerView
 import com.sellcallrecording.R
-import com.sellcallrecording.data.model.CallType
+import com.sellcallrecording.data.model.CallResponse
 import com.sellcallrecording.databinding.DialogCallBinding
 import com.sellcallrecording.databinding.ItemCallBinding
 import com.sellcallrecording.databinding.ProgressbarItemBinding
@@ -16,17 +16,17 @@ import com.sellcallrecording.util.ClickListener
 
 class CallDataViewAdapter(
     private val context: Context,
-    private val data: MutableList<CallType>,
+    private val data: MutableList<CallResponse>,
     private val listener: ClickListener,
     private val listener2: ClickListener,
     private val listener3: ClickListener
 ) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
 
-    private val originalData = mutableListOf<CallType>().apply { addAll(data) }
+    private val originalData = mutableListOf<CallResponse>().apply { addAll(data) }
     private var isShimmering = false
     private var isLoadingAdded = false
     private var currentPopupWindow: PopupWindow? = null
-    private var lastClickedItem: CallType? = null
+    private var lastClickedItem: CallResponse? = null
 
     companion object {
         private const val ITEM = 0
@@ -84,19 +84,19 @@ class CallDataViewAdapter(
         notifyDataSetChanged()
     }
 
-    fun addData(newItems: List<CallType>) {
+    fun addData(newItems: List<CallResponse>) {
         hideShimmer()
         data.clear()
         originalData.clear()
         updateDataInternal(newItems)
     }
 
-    fun updateData(newItems: List<CallType>) {
+    fun updateData(newItems: List<CallResponse>) {
         val uniqueItems = newItems.filterNot { it in data }
         updateDataInternal(uniqueItems)
     }
 
-    private fun updateDataInternal(newItems: List<CallType>) {
+    private fun updateDataInternal(newItems: List<CallResponse>) {
         data.addAll(newItems)
         originalData.addAll(newItems)
         notifyDataSetChanged()
@@ -108,17 +108,17 @@ class CallDataViewAdapter(
     }
 
     fun searchData(query: String) {
-        val filteredList = if (query.isEmpty()) originalData else originalData.filter { it.m_no.contains(query, ignoreCase = true) }
+        val filteredList = if (query.isEmpty()) originalData else originalData.filter { it.M_no.contains(query, ignoreCase = true) }
         updateFilteredData(filteredList)
     }
 
-    private fun updateFilteredData(filteredList: List<CallType>) {
+    private fun updateFilteredData(filteredList: List<CallResponse>) {
         data.clear()
-        data.addAll(filteredList.distinctBy { it.m_no })
+        data.addAll(filteredList.distinctBy { it.M_no })
         notifyDataSetChanged()
     }
 
-    private fun togglePopup(view: View, item: CallType, position: Int) {
+    private fun togglePopup(view: View, item: CallResponse, position: Int) {
         if (lastClickedItem == item) {
             currentPopupWindow?.dismiss()
             lastClickedItem = null
@@ -129,7 +129,7 @@ class CallDataViewAdapter(
         }
     }
 
-    private fun showPopup(view: View, item: CallType, position: Int) {
+    private fun showPopup(view: View, item: CallResponse, position: Int) {
         val popupView = LayoutInflater.from(context).inflate(R.layout.dialog_call, null)
         val binding = DialogCallBinding.bind(popupView)
 
@@ -138,8 +138,8 @@ class CallDataViewAdapter(
             showAsDropDown(view, 0, 0)
         }
 
-        binding.tvCAllPhone.text = item.m_no
-        binding.tvWhatPhone.text = item.m_no
+        binding.tvCAllPhone.text = item.M_no
+        binding.tvWhatPhone.text = item.M_no
 
         binding.llCall.setOnClickListener {
             listener.onItemSelected(position, item)
@@ -158,10 +158,10 @@ class CallDataViewAdapter(
         val detailImage = binding.detailImage
         val layoutCall = binding.layoutCall
 
-        fun bind(item: CallType) {
-            binding.textViewName.text = item.m_no
-            binding.textViewPhone.text = item.ttype
-            binding.textViewTime.text = item.time
+        fun bind(item: CallResponse) {
+            binding.textViewName.text = item.M_no
+            binding.textViewPhone.text = item.category
+            binding.textViewTime.text = item.updated_date
         }
     }
 

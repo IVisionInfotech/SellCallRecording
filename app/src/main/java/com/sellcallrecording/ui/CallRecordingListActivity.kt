@@ -17,7 +17,6 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.gson.Gson
 import com.sellcallrecording.R
 import com.sellcallrecording.adapter.RecordingAdapter
-import com.sellcallrecording.data.model.CallType
 import com.sellcallrecording.database.AppDatabase
 import com.sellcallrecording.database.Recording
 import com.sellcallrecording.databinding.ActivityCallRecordingListBinding
@@ -40,7 +39,6 @@ class CallRecordingListActivity : AppCompatActivity() {
     private lateinit var binding: ActivityCallRecordingListBinding
     private lateinit var adapter: RecordingAdapter
     private val recordings: MutableList<Recording> = mutableListOf()
-    private var data: CallType? = null
     private val viewModel: HomeViewModel by viewModels()
     private lateinit var database: AppDatabase
     private lateinit var progressDialog: ProgressDialog
@@ -53,7 +51,6 @@ class CallRecordingListActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         database = AppDatabase.getDatabase(this)
-        data = intent.getStringExtra("data")?.let { Gson().fromJson(it, CallType::class.java) }
         progressDialog = ProgressDialog(this).apply {
             setMessage("Loading...")
             setCancelable(false)
@@ -138,7 +135,9 @@ class CallRecordingListActivity : AppCompatActivity() {
                 duration = durationInSeconds,
                 token = recording.token,
                 d_id = recording.d_id,
-                date = recording.date
+                date = recording.date,
+                status = recording.status,
+                remarks = recording.remark
             )
 
             observeViewModelResponses(recording)

@@ -3,9 +3,12 @@ package com.sellcallrecording.ui.home
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.sellcallrecording.data.model.CallType
+import com.sellcallrecording.data.model.CallResponse
+import com.sellcallrecording.data.model.Category
+import com.sellcallrecording.data.model.StatusList
 import com.sellcallrecording.data.network.RetrofitClient
 import com.sellcallrecording.util.Util.LOAD_API_CALL_AGENT_URL
+import com.sellcallrecording.util.Util.LOAD_API_CALL_STAUS_LIST_URL
 import com.sellcallrecording.util.Util.LOAD_API_CALL_TYPE_DATA_URL
 import com.sellcallrecording.util.Util.LOAD_API_CALL_WhatsappStatus_URL
 import com.sellcallrecording.util.Util.LOAD_CALL_HISTORY_URL
@@ -19,10 +22,11 @@ import okhttp3.RequestBody
 import retrofit2.HttpException
 import java.io.File
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Named
 import kotlin.coroutines.cancellation.CancellationException
-
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
@@ -30,8 +34,9 @@ class HomeViewModel @Inject constructor(
     @Named("token") private val token: String
 ) : ViewModel() {
 
-    val list = MutableLiveData<List<CallType>?>()
-    val callType = MutableLiveData<List<CallType>?>()
+    val list = MutableLiveData<List<CallResponse>?>()
+    val callType = MutableLiveData<List<Category>?>()
+    val statusList = MutableLiveData<List<StatusList>?>()
     val errorMessage = MutableLiveData<String>()
     val errorMsg = MutableLiveData<String>()
     val successMsg = MutableLiveData<String>()
@@ -43,16 +48,19 @@ class HomeViewModel @Inject constructor(
 
     fun fetchData(baseUrl: String, endpoint: String, communicationType: String, search: String) {
         currentJob?.cancel()
-        headers["Authorization"] = token
+        headers["X-API-Key"] = token
 
         currentJob = viewModelScope.launch {
             try {
-
+                val requestData = mapOf(
+                    "category_id" to communicationType,
+                )
                 val response =
-                    retrofitClient.getInstance(baseUrl).postGetData(endpoint, headers = headers)
+                    retrofitClient.getInstance(baseUrl)
+                        .postGetData(endpoint, headers = headers, requestData = requestData)
 
-                if (!response.ctype.isNullOrEmpty()) {
-                    list.postValue(response.ctype)
+                if (!response.calls.isNullOrEmpty()) {
+                    list.postValue(response.calls)
                 } else if (response.status == "1") {
                     errorMessage.postValue(response.msg ?: "Unknown error occurred.")
                 } else {
@@ -74,7 +82,6 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-
     fun fetchCallTypeData(baseUrl: String) {
         viewModelScope.launch {
             try {
@@ -82,8 +89,8 @@ class HomeViewModel @Inject constructor(
                 val response = retrofitClient.getInstance(baseUrl)
                     .postGetData(LOAD_API_CALL_TYPE_DATA_URL, headers = headers)
 
-                if (!response.ctype.isNullOrEmpty()) {
-                    callType.postValue(response.ctype)
+                if (!response.category_list.isNullOrEmpty()) {
+                    callType.postValue(response.category_list)
                 }
             } catch (e: HttpException) {
                 errorMsg.postValue("Server error: ${e.message}")
@@ -95,14 +102,16 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun agentCallStatus(baseUrl: String) {
+    fun fetchStatusListData(baseUrl: String) {
         viewModelScope.launch {
             try {
-                val requestData = hashMapOf("token" to token)
+                headers["Authorization"] = token
                 val response = retrofitClient.getInstance(baseUrl)
-                    .postGetData(LOAD_API_CALL_AGENT_URL, requestData)
+                    .postGetData(LOAD_API_CALL_STAUS_LIST_URL, headers = headers)
 
-                successMsg1.postValue(response.msg)
+                if (!response.status_list.isNullOrEmpty()) {
+                    statusList.postValue(response.status_list)
+                }
             } catch (e: HttpException) {
                 errorMsg.postValue("Server error: ${e.message}")
             } catch (e: IOException) {
@@ -113,16 +122,20 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun agentWhatsappCallStatus(baseUrl: String, d_id: String, date: String) {
+    fun agentWhatsappCallStatus(baseUrl: String, d_id: String, status: String) {
         viewModelScope.launch {
             try {
+                headers["Authorization"] = token
                 val requestData = hashMapOf(
-                    "token" to token,
-                    "d_id" to d_id,
-                    "date" to date
+                    "call_id" to d_id,
+                    "call_type" to status
                 )
                 val response = retrofitClient.getInstance(baseUrl)
-                    .postGetData(LOAD_API_CALL_WhatsappStatus_URL, requestData)
+                    .postGetData(
+                        LOAD_API_CALL_WhatsappStatus_URL,
+                        requestData = requestData,
+                        headers = headers
+                    )
 
                 successMsg1.postValue(response.msg)
             } catch (e: HttpException) {
@@ -144,7 +157,9 @@ class HomeViewModel @Inject constructor(
         duration: Int,
         token: String,
         d_id: String,
-        date: String
+        date: String,
+        status: String,
+        remarks: String,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -153,6 +168,10 @@ class HomeViewModel @Inject constructor(
                     errorMsg1.postValue("Recording file does not exist")
                     return@launch
                 }
+                headers["Authorization"] = token
+
+                val startDateTime = formatDateTime("$date $startTime")
+                val endDateTime = formatDateTime("$date $endTime")
 
                 val audioFilePart = MultipartBody.Part.createFormData(
                     "rec_file", recordingFile.name,
@@ -160,21 +179,21 @@ class HomeViewModel @Inject constructor(
                 )
 
                 val data = hashMapOf(
-                    "file_name" to RequestBody.create("text/plain".toMediaTypeOrNull(), fileName),
-                    "start_time" to RequestBody.create("text/plain".toMediaTypeOrNull(), startTime),
-                    "end_time" to RequestBody.create("text/plain".toMediaTypeOrNull(), endTime),
-                    "duration" to RequestBody.create(
+                    "call_id" to RequestBody.create("text/plain".toMediaTypeOrNull(), d_id),
+                    "feedback" to RequestBody.create("text/plain".toMediaTypeOrNull(), remarks),
+                    "status" to RequestBody.create("text/plain".toMediaTypeOrNull(), status),
+                    "call_start_time" to RequestBody.create(
                         "text/plain".toMediaTypeOrNull(),
-                        duration.toString()
+                        startDateTime
                     ),
-                    "token" to RequestBody.create("text/plain".toMediaTypeOrNull(), token),
-                    "d_id" to RequestBody.create("text/plain".toMediaTypeOrNull(), d_id),
-                    "date" to RequestBody.create("text/plain".toMediaTypeOrNull(), date)
+                    "call_end_time" to RequestBody.create(
+                        "text/plain".toMediaTypeOrNull(),
+                        endDateTime
+                    ),
                 )
 
                 val response = retrofitClient.getInstance(baseUrl)
-                    .uploadRecording(LOAD_CALL_HISTORY_URL, audioFilePart, data)
-
+                    .uploadRecording(LOAD_CALL_HISTORY_URL, audioFilePart, data, headers)
 
                 println("File uploaded successfully: ${response.msg}")
                 recordingFile.delete()
@@ -186,6 +205,17 @@ class HomeViewModel @Inject constructor(
             } catch (e: Exception) {
                 errorMsg1.postValue("Unexpected error: ${e.message}")
             }
+        }
+    }
+
+    fun formatDateTime(input: String): String {
+        return try {
+            val inputFormat = SimpleDateFormat("d-M-yyyy HH:mm:ss", Locale.getDefault())
+            val outputFormat = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val date = inputFormat.parse(input)
+            outputFormat.format(date!!)
+        } catch (e: Exception) {
+            input
         }
     }
 }
