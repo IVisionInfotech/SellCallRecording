@@ -8,19 +8,32 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
+import androidx.lifecycle.lifecycleScope
 import com.sellcallrecording.BuildConfig
 import com.sellcallrecording.BuildConfig.*
+import com.sellcallrecording.data.network.RetrofitClient
 import com.sellcallrecording.databinding.ActivityMainBinding
 import com.sellcallrecording.util.Session
+import com.sellcallrecording.util.Util.LOAD_CALL_LOGOUT_URL
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Named
 
 @AndroidEntryPoint
 open class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+
     @Inject
     lateinit var session: Session
+
+    @Inject
+    lateinit var retrofitClient: RetrofitClient
+
+    @Inject
+    @Named("token")
+    lateinit var token: String
     private var back: Long = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -31,14 +44,6 @@ open class MainActivity : AppCompatActivity() {
     }
 
     private fun init() {
-//        val uri = Uri.parse("package:$APPLICATION_ID")
-//
-//        startActivity(
-//            Intent(
-//                Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION,
-//                uri
-//            )
-//        )
         val params = binding.drawerMenu.layoutParams
         params.width = Resources.getSystem().displayMetrics.widthPixels / 2.5f.toInt()
         binding.drawerMenu.layoutParams = params
@@ -47,10 +52,8 @@ open class MainActivity : AppCompatActivity() {
 
         binding.btnLogout.setOnClickListener {
             closeDrawer()
-            session.putBoolean("isLogin", false)
-            val intent = Intent(this, LoginActivity::class.java)
-            startActivity(intent)
-            finish()
+            callLogoutApi()
+
         }
 
         binding.btnPending.setOnClickListener {
@@ -88,4 +91,37 @@ open class MainActivity : AppCompatActivity() {
             back = System.currentTimeMillis()
         }
     }
+
+    private fun callLogoutApi() {
+        val baseUrl = session.getString("baseUrl", "").toString()
+        val headers = mutableMapOf<String, String>()
+        headers["Authorization"] = token
+
+        lifecycleScope.launch {
+            try {
+                val response = retrofitClient.getInstance(baseUrl)
+                    .postGetData(LOAD_CALL_LOGOUT_URL, headers = headers)
+
+                if (response.status == "0") {
+                    Toast.makeText(this@MainActivity, response.msg ?: "Logout successful", Toast.LENGTH_SHORT).show()
+                    session.putBoolean("isLogin", false)
+                    startActivity(Intent(this@MainActivity, LoginActivity::class.java))
+                    finish()
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        response.msg ?: "Logout failed",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@MainActivity,
+                    "Logout error: ${e.localizedMessage}",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+    }
+
 }

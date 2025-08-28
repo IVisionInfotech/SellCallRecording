@@ -39,6 +39,7 @@ object Util {
     const val LOAD_API_CALL_AGENT_URL = "calltypeapi.php"
     const val LOAD_API_CALL_WhatsappStatus_URL = "calltypeapi.php"
     const val LOAD_CALL_HISTORY_URL = "update_call.php"
+    const val LOAD_CALL_LOGOUT_URL = "logout.php"
     private var ansTrue: Runnable? = null
 
 
